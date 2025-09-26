@@ -1,0 +1,53 @@
+//let InputEmailDirection = pack_array("Inbound","Outbound","Intra-org","Unknown");
+let InputEmailDirection = pack_array("Inbound");
+//
+let Time = 60d;
+EmailEvents 
+// Keys 
+    | where EmailDirection in (InputEmailDirection) 
+    | where Subject contains 'Invoice #03388882'
+    | where TimeGenerated > ago( Time )
+    | where NetworkMessageId == '56a82f94-aa7f-4674-f36c-08dde37fb08c'
+
+let Time = 60d;
+AlertEvidence
+// Keys 
+    | where TimeGenerated > ago( Time )
+    | where NetworkMessageId == '56a82f94-aa7f-4674-f36c-08dde37fb08c'
+
+let Time = 60d;
+EmailUrlInfo
+// Keys 
+    | where TimeGenerated > ago( Time )
+    | where NetworkMessageId == '56a82f94-aa7f-4674-f36c-08dde37fb08c'
+
+let Time = 60d;
+UrlClickEvents
+// Keys 
+    | where TimeGenerated > ago( Time )
+    | where NetworkMessageId == '56a82f94-aa7f-4674-f36c-08dde37fb08c'
+
+let Mailbox = "mhayes@wesfarmers.com.au";
+let SearchWindow = 48h; //Customizable h = hours, d = days
+EmailEvents
+| where TimeGenerated > ago(SearchWindow)
+| where SenderFromAddress == Mailbox
+| where AttachmentCount > 0
+| join kind=leftouter EmailAttachmentInfo on NetworkMessageId
+| project
+     TimeGenerated,
+     NetworkMessageId,
+     SenderFromAddress,
+     RecipientEmailAddress,
+     Subject,
+     ThreatTypes,
+     SHA256
+| join kind=leftouter DeviceFileEvents on SHA256
+| summarize
+     EmailReciepients = make_set(RecipientEmailAddress),
+     Subject= make_set(Subject),
+     FileOnDevices = make_set(DeviceName)
+     by SHA256, NetworkMessageId
+| extend
+     TotalReciepients = array_length(EmailReciepients),
+     DeviceWithFileInteraction = array_length(FileOnDevices)
